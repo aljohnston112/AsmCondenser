@@ -5,13 +5,15 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 public class Main {
 
 	private static File fileIn = new File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\engine.asm");
-	 //private static File fileIn = new
-	 //File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\test.txt");
+	// private static File fileIn = new
+	// File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\test.txt");
 
 	public static void main(String[] args) {
 		condenseAsm(fileIn);
@@ -34,391 +36,256 @@ public class Main {
 
 	private static void condenseAsm(Scanner scanner, BufferedWriter out) throws IOException {
 		String line;
+		String leadingWhiteSpace;
 		String trimmedLine;
+		String instruction;
+		String lCInstruction;
+		String lineArgs;
+		String arg1;
+		String arg2;
+		Scanner lineScanner;
+		List<String> fluff = new ArrayList<>();
+		boolean printTheRest = true;
 		while (scanner.hasNext()) {
+			printTheRest = true;
+			instruction = null;
+			arg1 = null;
+			arg2 = null;
 			line = scanner.nextLine();
+			leadingWhiteSpace = getLeadingWhiteSpace(line);
 			trimmedLine = line.trim();
+			lineScanner = new Scanner(line);
+			lineScanner.useDelimiter("[\\p{javaWhitespace},]+");
+			fluff.clear();
+			if (lineScanner.hasNext()) {
+				instruction = lineScanner.next();
+				if (instruction.charAt(0) == ';') {
+					fluff.add(instruction);
+					instruction = null;
+				}
+			}
+			if (lineScanner.hasNext()) {
+				lineArgs = lineScanner.nextLine();
+				String[] args = lineArgs.split(",");
+				if(args.length > 0){
+					arg1 = args[0].split(";")[0];
+					arg1 = arg1.trim();
+				}
+				if(args.length > 1){
+					arg2 = args[1].split(";")[0];
+					arg2 = arg2.trim();
+				}
+			}
+			if (arg1 != null && arg1.length() > 0) {
+				if (arg1.charAt(0) == ';' || instruction == null) {
+					fluff.add(arg1);
+					arg1 = null;
+				}
+			}
+			if (arg2 != null && arg2.length() > 0) {
+				if (arg2.charAt(0) == ';' || instruction == null || arg1 == null) {
+					fluff.add(arg2);
+					arg2 = null;
+				}
+			}
 			if (trimmedLine.length() > 0) {
 				if (trimmedLine.charAt(0) == ';') {
 					out.write(line);
-					out.write("\n");
-				} else if (trimmedLine.toLowerCase().equals("ret")) {
-					out.write(line);
-					out.write("\n");
-				} else {
-					parseLine(line, out);
+					fluff.clear();
+					printTheRest = false;
 				}
-			} else {
-				out.write(line);
-				out.write("\n");
 			}
+			if (instruction != null && instruction.length() > 0) {
+				lCInstruction = instruction.toLowerCase();
+				if (instruction.charAt(instruction.length() - 1) == ':' || instruction.charAt(0) == '.') {
+					out.write(line);
+					fluff.clear();
+					printTheRest = false;
+				} else if (lCInstruction.equals("push") || lCInstruction.equals("pop") || lCInstruction.equals("call")
+						|| lCInstruction.equals("jr") || lCInstruction.equals("jp") || lCInstruction.equals("ret")
+						|| lCInstruction.equals("bit")) {
+					out.write(line);
+					fluff.clear();
+					printTheRest = false;
+				} else if (lCInstruction.equals("ld") || lCInstruction.equals("ldh")) {
+					out.write(leadingWhiteSpace);
+					out.write(getLD(arg1, arg2));
+				} else if (lCInstruction.equals("cp")) {
+					out.write(leadingWhiteSpace);
+					out.write(getCP(arg1, arg2));
+				} else if (lCInstruction.equals("dec")) {
+					out.write(leadingWhiteSpace);
+					out.write(getDEC(arg1));
+				} else if (lCInstruction.equals("inc")) {
+					out.write(leadingWhiteSpace);
+					out.write(getINC(arg1));
+				} else if (lCInstruction.equals("add")) {
+					out.write(leadingWhiteSpace);
+					out.write(getADD(arg1, arg2));
+				} else if (lCInstruction.equals("and")) {
+					out.write(leadingWhiteSpace);
+					out.write(getAND(arg1, arg2));
+				} else if (lCInstruction.equals("or")) {
+					out.write(leadingWhiteSpace);
+					out.write(getOR(arg1, arg2));
+				} else if (lCInstruction.equals("xor")) {
+					out.write(leadingWhiteSpace);
+					out.write(getXOR(arg1, arg2));
+				} else {
+					out.write("unimplemented: ");
+					out.write(line);
+					fluff.clear();
+					printTheRest = false;
+				}
+			}
+			if (printTheRest) {
+				for (String s : fluff) {
+					out.write(s);
+				}
+				printTheRest(lineScanner, out);
+			}
+			out.write("\n");
 		}
 		out.flush();
 	}
 
-	private static void parseLine(String line, BufferedWriter out) throws IOException {
-		Scanner lineScanner = new Scanner(line);
-		lineScanner.useDelimiter("[\\p{javaWhitespace},]+");
-		String word;
-		int i = -1;
-		out.write(getLeadingWhiteSpace(line));
-		while (lineScanner.hasNext()) {
-			word = lineScanner.next();
-			i++;
-			if (word.length() > 0) {
-				if (i == 0) {
-					if (word.charAt(word.length() - 1) == ':' || word.charAt(0) == '.') {
-						out.write(word);
-					} else if (word.toLowerCase().equals("push") || word.toLowerCase().equals("pop")
-							|| word.toLowerCase().equals("call")) {
-						out.write(word);
-					} else if (word.toLowerCase().equals("ld") || word.toLowerCase().equals("ldh")) {
-						String lhs;
-						String rhs;
-						if (lineScanner.hasNext()) {
-							lhs = lineScanner.next();
-							if (lineScanner.hasNext()) {
-								rhs = lineScanner.next();
-								if (rhs.charAt(0) == ';') {
-									out.write("a = ");
-									out.write(lhs);
-									out.write(" ");
-									out.write(rhs);
-								} else {
-									out.write(lhs);
-									out.write(" = ");
-									out.write(rhs);
-								}
-							} else {
-								out.write("a = ");
-								out.write(lhs);
-							}
-						}
-					} else if (word.toLowerCase().equals("cp")) {
-						if (lineScanner.hasNext()) {
-							word = lineScanner.next();
-							if (!word.toLowerCase().equals("a")) {
-								if (lineScanner.hasNext()) {
-									String firstArg = word;
-									word = lineScanner.next();
-									if (word.charAt(0) == ';') {
-										out.write("c if (a < ");
-										out.write(firstArg);
-										out.write(") ");
-										out.write(word);
-									} else {
-										out.write("c if (");
-										out.write(firstArg);
-										out.write(" < ");
-										out.write(word);
-										out.write(")");
-									}
-								} else {
-									out.write("c if (a < ");
-									out.write(word);
-									out.write(")");
-								}
-							} else {
-								if (lineScanner.hasNext()) {
-									out.write("c if (");
-									out.write(word);
-									out.write(" < ");
-									word = lineScanner.next();
-									if (word.charAt(0) == ';') {
-										out.write("a ");
-										out.write(word);
-									} else {
-										out.write(word);
-										out.write(")");
-									}
-								} else {
-									out.write("cp ");
-									out.write(word);
-								}
-							}
-						}
-					} else if (word.toLowerCase().equals("add")) {
-						if (lineScanner.hasNext()) {
-							word = lineScanner.next();
-							if (!word.toLowerCase().equals("a")) {
-								if (lineScanner.hasNext()) {
-									String lhs = word;
-									word = lineScanner.next();
-									if (word.charAt(0) == ';') {
-										out.write("a = (a + ");
-										out.write(lhs);
-										out.write(") ");
-										out.write(word);
-									} else {
-										out.write(lhs);
-										out.write(" = ");
-										out.write("(");
-										out.write(lhs);
-										out.write(" + ");
-										out.write(word);
-										out.write(")");
-
-									}
-								} else {
-									out.write("a = (a + ");
-									out.write(word);
-									out.write(")");
-								}
-							} else {
-								if (lineScanner.hasNext()) {
-									String lhs = word;
-									word = lineScanner.next();
-									if (word.charAt(0) == ';') {
-										out.write("add a ");
-										out.write(word);
-									} else {
-										out.write(word);
-										out.write(" = ");
-										out.write("(");
-										out.write(lhs);
-										out.write(" + ");
-										out.write(word);
-										out.write(")");
-									}
-								} else {
-									out.write("add ");
-									out.write(word);
-								}
-							}
-						}
-					} else if (word.toLowerCase().equals("and")) {
-						if (lineScanner.hasNext()) {
-							word = lineScanner.next();
-							if (!word.toLowerCase().equals("a")) {
-								if (lineScanner.hasNext()) {
-									String lhs = word;
-									word = lineScanner.next();
-									if (word.charAt(0) == ';') {
-										out.write("a = (a & ");
-										out.write(lhs);
-										out.write(") ");
-										out.write(word);
-									} else {
-										out.write(lhs);
-										out.write(" = ");
-										out.write("(");
-										out.write(lhs);
-										out.write(" & ");
-										out.write(word);
-										out.write(")");
-
-									}
-								} else {
-									out.write("a = (a & ");
-									out.write(word);
-									out.write(")");
-								}
-							} else {
-								if (lineScanner.hasNext()) {
-									String lhs = word;
-									word = lineScanner.next();
-									if (word.charAt(0) == ';') {
-										out.write("and a ");
-										out.write(word);
-									} else {
-										out.write(word);
-										out.write(" = ");
-										out.write("(");
-										out.write(lhs);
-										out.write(" & ");
-										out.write(word);
-										out.write(")");
-									}
-								} else {
-									out.write("and ");
-									out.write(word);
-								}
-							}
-						}
-					} else if (word.toLowerCase().equals("or")) {
-						if (lineScanner.hasNext()) {
-							word = lineScanner.next();
-							if (!word.toLowerCase().equals("a")) {
-								if (lineScanner.hasNext()) {
-									String lhs = word;
-									word = lineScanner.next();
-									if (word.charAt(0) == ';') {
-										out.write("a = (a & ");
-										out.write(lhs);
-										out.write(") ");
-										out.write(word);
-									} else {
-										out.write(lhs);
-										out.write(" = ");
-										out.write("(");
-										out.write(lhs);
-										out.write(" & ");
-										out.write(word);
-										out.write(")");
-
-									}
-								} else {
-									out.write("a = (a & ");
-									out.write(word);
-									out.write(")");
-								}
-							} else {
-								if (lineScanner.hasNext()) {
-									String lhs = word;
-									word = lineScanner.next();
-									if (word.charAt(0) == ';') {
-										out.write("or a ");
-										out.write(word);
-									} else {
-										out.write(word);
-										out.write(" = ");
-										out.write("(");
-										out.write(lhs);
-										out.write(" & ");
-										out.write(word);
-										out.write(")");
-									}
-								} else {
-									out.write("or ");
-									out.write(word);
-								}
-							}
-						}
-					} else if (word.toLowerCase().equals("xor")) {
-						if (lineScanner.hasNext()) {
-							word = lineScanner.next();
-							if (!word.toLowerCase().equals("a")) {
-								if (lineScanner.hasNext()) {
-									String lhs = word;
-									word = lineScanner.next();
-									if (word.charAt(0) == ';') {
-										out.write("a = (a ^ ");
-										out.write(lhs);
-										out.write(") ");
-										out.write(word);
-									} else {
-										out.write(lhs);
-										out.write(" = ");
-										out.write("(");
-										out.write(lhs);
-										out.write(" ^ ");
-										out.write(word);
-										out.write(")");
-
-									}
-								} else {
-									out.write("a = (a ^ ");
-									out.write(word);
-									out.write(")");
-								}
-							} else {
-								out.write(word);
-								out.write(" = ");
-								if (lineScanner.hasNext()) {
-									String lhs = word;
-									word = lineScanner.next();
-									if (word.charAt(0) == ';') {
-										out.write("xor a ");
-										out.write(word);
-									} else {
-										out.write("(");
-										out.write(lhs);
-										out.write(" ^ ");
-										out.write(word);
-										out.write(")");
-									}
-								} else {
-									out.write("xor a");
-									out.write(word);
-								}
-							}
-						}
-					} else if ((word.toLowerCase().equals("dec"))) {
-						if (lineScanner.hasNext()) {
-							word = lineScanner.next();
-							out.write(word);
-							out.write("--");
-						}
-					} else if ((word.toLowerCase().equals("inc"))) {
-						if (lineScanner.hasNext()) {
-							word = lineScanner.next();
-							out.write(word);
-							out.write("++");
-						}
-					} else if ((word.toLowerCase().equals("jp"))) {
-						out.write("jp");
-						if (lineScanner.hasNext()) {
-							String condition = lineScanner.next();
-							if (lineScanner.hasNext()) {
-								word = lineScanner.next();
-								if (word.length() > 0 && word.charAt(0) == ';') {
-									out.write(" ");
-									out.write(condition);
-									out.write(" ");
-									out.write(word);
-								} else {
-									out.write(" if ");
-									out.write(condition);
-									out.write(" to ");
-									out.write(word);
-								}
-							} else {
-								out.write(" ");
-								out.write(condition);
-							}
-						}
-					} else if ((word.toLowerCase().equals("jr"))) {
-						out.write("jr");
-						if (lineScanner.hasNext()) {
-							String condition = lineScanner.next();
-							if (lineScanner.hasNext()) {
-								word = lineScanner.next();
-								if (word.length() > 0 && word.charAt(0) == ';') {
-									out.write(" ");
-									out.write(condition);
-									out.write(" ");
-									out.write(word);
-								} else {
-									out.write(" if ");
-									out.write(condition);
-									out.write(" by ");
-									out.write(word);
-								}
-							} else {
-								out.write(" ");
-								out.write(condition);
-							}
-						}
-					} else if ((word.toLowerCase().equals("bit")) || (word.toLowerCase().equals("db")) ||
-							(word.toLowerCase().equals("dw")) || (word.toLowerCase().equals("dl")) ||
-							(word.toLowerCase().equals("res")) || (word.toLowerCase().equals("set"))) {
-						out.write(word);
-					} else if ((word.toLowerCase().equals("ret"))) {
-						out.write(word);
-						out.write(" if ");
-						if(lineScanner.hasNext()) {
-							word = lineScanner.next();
-							out.write(word);
-						}
-					} else {
-						out.write("unimplemented: ");
-						out.write(word);
-						out.write(" ");
-					}
-					printTheRest(lineScanner, out);
-				}
+	private static String getCP(String arg1, String arg2) {
+		StringBuilder stringBuilder = new StringBuilder();
+		if (arg1 != null) {
+			if (arg2 != null) {
+				stringBuilder.append("c if (");
+				stringBuilder.append(arg1);
+				stringBuilder.append(" < ");
+				stringBuilder.append(arg2);
+				stringBuilder.append(") ");
 			} else {
-				out.write(word);
+				stringBuilder.append("c if (a < ");
+				stringBuilder.append(arg1);
+				stringBuilder.append(") ");
 			}
+		} else {
+			throw new IllegalArgumentException("Invalid cp instruction");
 		}
-		out.write("\n");
-		lineScanner.close();
+		return stringBuilder.toString();
 	}
 
-	private static void printTheRest(Scanner scanner, BufferedWriter out) throws IOException {
-		if (scanner.hasNext()) {
-			out.write(scanner.nextLine());
+	private static String getDEC(String arg1) {
+		StringBuilder stringBuilder = new StringBuilder();
+		if (arg1 != null) {
+			stringBuilder.append(arg1);
+			stringBuilder.append("--");
+		} else {
+			throw new IllegalArgumentException("Invalid dec instruction");
 		}
+		return stringBuilder.toString();
+	}
+
+	private static String getINC(String arg1) {
+		StringBuilder stringBuilder = new StringBuilder();
+		if (arg1 != null) {
+			stringBuilder.append(arg1);
+			stringBuilder.append("++");
+		} else {
+			throw new IllegalArgumentException("Invalid inc instruction");
+		}
+		return stringBuilder.toString();
+	}
+
+	private static String getADD(String arg1, String arg2) {
+		StringBuilder stringBuilder = new StringBuilder();
+		if (arg1 != null) {
+			if (arg2 != null) {
+				stringBuilder.append(arg1);
+				stringBuilder.append(" = ");
+				stringBuilder.append(arg1);
+				stringBuilder.append(" + ");
+				stringBuilder.append(arg2);
+			} else {
+				stringBuilder.append("a = a");
+				stringBuilder.append(" + ");
+				stringBuilder.append(arg1);
+			}
+		} else {
+			throw new IllegalArgumentException("Invalid add instruction");
+		}
+		return stringBuilder.toString();
+	}
+
+	private static String getXOR(String arg1, String arg2) {
+		StringBuilder stringBuilder = new StringBuilder();
+		if (arg1 != null) {
+			if (arg2 != null) {
+				stringBuilder.append(arg1);
+				stringBuilder.append(" = ");
+				stringBuilder.append(arg1);
+				stringBuilder.append(" ^ ");
+				stringBuilder.append(arg2);
+			} else {
+				stringBuilder.append("a = a");
+				stringBuilder.append(" ^ ");
+				stringBuilder.append(arg1);
+			}
+		} else {
+			throw new IllegalArgumentException("Invalid xor instruction");
+		}
+		return stringBuilder.toString();
+	}
+
+	private static String getOR(String arg1, String arg2) {
+		StringBuilder stringBuilder = new StringBuilder();
+		if (arg1 != null) {
+			if (arg2 != null) {
+				stringBuilder.append(arg1);
+				stringBuilder.append(" = ");
+				stringBuilder.append(arg1);
+				stringBuilder.append(" | ");
+				stringBuilder.append(arg2);
+			} else {
+				stringBuilder.append("a = a");
+				stringBuilder.append(" | ");
+				stringBuilder.append(arg1);
+			}
+		} else {
+			throw new IllegalArgumentException("Invalid or instruction");
+		}
+		return stringBuilder.toString();
+	}
+
+	private static String getAND(String arg1, String arg2) {
+		StringBuilder stringBuilder = new StringBuilder();
+		if (arg1 != null) {
+			if (arg2 != null) {
+				stringBuilder.append(arg1);
+				stringBuilder.append(" = ");
+				stringBuilder.append(arg1);
+				stringBuilder.append(" & ");
+				stringBuilder.append(arg2);
+			} else {
+				stringBuilder.append("a = a");
+				stringBuilder.append(" & ");
+				stringBuilder.append(arg1);
+			}
+		} else {
+			throw new IllegalArgumentException("Invalid and instruction");
+		}
+		return stringBuilder.toString();
+	}
+
+	private static String getLD(String arg1, String arg2) {
+		StringBuilder stringBuilder = new StringBuilder();
+		if (arg1 != null) {
+			if (arg2 != null) {
+				stringBuilder.append(arg1);
+				stringBuilder.append(" = ");
+				stringBuilder.append(arg2);
+			} else {
+				stringBuilder.append("a = ");
+				stringBuilder.append(arg1);
+			}
+		} else {
+			throw new IllegalArgumentException("Invalid ld instruction");
+		}
+		return stringBuilder.toString();
 	}
 
 	private static String getLeadingWhiteSpace(String line) {
@@ -435,9 +302,9 @@ public class Main {
 		return whiteSpace.toString();
 	}
 
-	private static void eatTheRest(Scanner scanner) {
-		while (scanner.hasNext()) {
-			scanner.next();
+	private static void printTheRest(Scanner scanner, BufferedWriter out) throws IOException {
+		if (scanner.hasNext()) {
+			out.write(scanner.nextLine());
 		}
 	}
 
