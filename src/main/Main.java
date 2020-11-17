@@ -13,6 +13,10 @@ import java.util.Scanner;
 
 public class Main {
 
+	// TODO Add variable assignment replacement to jumps and bit operations.
+	// TODO Follow variable assignment when push and pop are used.
+	// TODO 3rd step: Follow register values through calls and jumps.
+	
 	 private static File fileIn = new File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\engine.asm");
 	 //private static File fileIn = new
 	 //File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\test.txt");
