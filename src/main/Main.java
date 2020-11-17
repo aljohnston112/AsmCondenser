@@ -6,25 +6,28 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 
 public class Main {
 
-	 private static File fileIn = new
-	 File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\engine.asm");
-	//private static File fileIn = new File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\test.txt");
+	 private static File fileIn = new File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\engine.asm");
+	 //private static File fileIn = new
+	 //File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\test.txt");
 
 	public static void main(String[] args) {
 		condenseAsm(fileIn);
 	}
 
 	private static void condenseAsm(File asmFile) {
+		File refactoredFile = null;
 		try {
 			Scanner scanner = new Scanner(asmFile);
-			BufferedWriter out = new BufferedWriter(
-					new FileWriter(new File(asmFile.getParent() + "\\out\\" + asmFile.getName())));
-			condenseAsm(scanner, out);
+			refactoredFile = new File(asmFile.getParent() + "\\out\\" + asmFile.getName());
+			BufferedWriter out = new BufferedWriter(new FileWriter(refactoredFile));
+			refactorAsm(scanner, out);
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -32,15 +35,115 @@ public class Main {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		if (refactoredFile != null) {
+			try {
+				Scanner scanner = new Scanner(refactoredFile);
+				BufferedWriter out = new BufferedWriter(
+						new FileWriter(new File(asmFile.getParent() + "\\out\\refactored_" + asmFile.getName())));
+				condenseASM(scanner, out);
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 
-	private static void condenseAsm(Scanner scanner, BufferedWriter out) throws IOException {
+	private static void condenseASM(Scanner scanner, BufferedWriter out) throws IOException {
+		Map<String, String> equalsMap = new HashMap<>();
+		String line;
+		Scanner lineScanner;
+		String leadingWhiteSpace;
+		String first;
+		String[] args;
+		String[] realArgs;
+		String lhs;
+		String rhs;
+		Scanner lhsScanner;
+		Scanner rhsScanner;
+		String s;
+		List<String> comments = new ArrayList<>();
+		while (scanner.hasNext()) {
+			lhs = null;
+			rhs = null;
+			line = scanner.nextLine();
+			leadingWhiteSpace = getLeadingWhiteSpace(line);
+			lineScanner = new Scanner(line);
+			if (lineScanner.hasNext()) {
+				first = lineScanner.next();
+				if (first.charAt(0) == '.' || first.charAt(first.length() - 1) == ':' 
+						|| first.toLowerCase().equals("pop") || first.toLowerCase().equals("call")) {
+					equalsMap.clear();
+				}
+				if (line.contains("=")) {
+					args = line.split(";");
+					if (args.length > 0) {
+						String realLine = args[0];
+						realArgs = realLine.split("=");
+						if (realArgs.length > 0) {
+							lhs = realArgs[0];
+						}
+						if (realArgs.length > 1) {
+							rhs = realArgs[1];
+						}
+						if (lhs != null && rhs != null) {
+							if (lhs.contains("[") || lhs.contains("]")) {
+								lhsScanner = new Scanner(lhs);
+								lhsScanner.useDelimiter("[\\p{javaWhitespace}\\[\\]\\+\\-\\^\\|\\&\\(\\)]+");
+								while (lhsScanner.hasNext()) {
+									s = lhsScanner.next();
+									if (equalsMap.containsKey(s)) {
+										lhs = lhs.replace(" "+ s + " ", " " + (String)equalsMap.get(s) + " ");
+									}
+								}
+							}
+							rhsScanner = new Scanner(rhs);
+							rhsScanner.useDelimiter("[\\p{javaWhitespace}\\[\\]\\+\\-\\^\\|\\&\\(\\)]+");
+							while (rhsScanner.hasNext()) {
+								s = rhsScanner.next();
+								if (equalsMap.containsKey(s)) {
+									rhs = rhs.replace(" "+ s + " ", " " + (String)equalsMap.get(s) + " ");
+								}
+							}
+							equalsMap.put(lhs.trim(), rhs.trim());
+						}
+						for (int i = 1; i < args.length; i++) {
+							comments.add(args[i]);
+						}
+						if (lhs != null && rhs != null) {
+							//out.write(leadingWhiteSpace);
+							out.write(lhs);
+							out.write("=");
+							out.write(rhs);
+							for (String string : comments) {
+								out.write(";");
+								out.write(string);
+							}
+							comments.clear();
+						}
+					} else {
+						out.write(line);
+					}
+				} else {
+					out.write(line);
+				}
+			}
+			out.write("\n");
+		}
+		out.flush();
+	}
+
+	private static void refactorAsm(Scanner scanner, BufferedWriter out) throws IOException {
 		String line;
 		String leadingWhiteSpace;
 		String trimmedLine;
 		String instruction;
 		String lCInstruction;
 		String lineArgs;
+		String[] lineAndComment;
+		String[] args;
 		String arg1;
 		String arg2;
 		Scanner lineScanner;
@@ -66,9 +169,9 @@ public class Main {
 			}
 			if (lineScanner.hasNext()) {
 				lineArgs = lineScanner.nextLine();
-				String[] lineAndComment = lineArgs.split(";");
+				lineAndComment = lineArgs.split(";");
 				if (lineAndComment.length > 0) {
-					String[] args = lineAndComment[0].split(",");
+					args = lineAndComment[0].split(",");
 					if (lineAndComment.length > 1) {
 						fluff.add(" ");
 					}
@@ -133,7 +236,7 @@ public class Main {
 				} else if (lCInstruction.equals("add")) {
 					out.write(leadingWhiteSpace);
 					out.write(getADD(arg1, arg2));
-				}  else if (lCInstruction.equals("adc")) {
+				} else if (lCInstruction.equals("adc")) {
 					out.write(leadingWhiteSpace);
 					out.write(getADC(arg1, arg2));
 				} else if (lCInstruction.equals("sub")) {
@@ -148,7 +251,7 @@ public class Main {
 				} else if (lCInstruction.equals("sra")) {
 					out.write(leadingWhiteSpace);
 					out.write(getSRA(arg1));
-				}  else if (lCInstruction.equals("srl")) {
+				} else if (lCInstruction.equals("srl")) {
 					out.write(leadingWhiteSpace);
 					out.write(getSRL(arg1));
 				} else if (lCInstruction.equals("rr")) {
@@ -189,6 +292,9 @@ public class Main {
 				for (String s : fluff) {
 					out.write(s);
 				}
+				if(fluff.isEmpty()) {
+					out.write(" ");					
+				}
 				printTheRest(lineScanner, out);
 			}
 			out.write("\n");
@@ -198,10 +304,10 @@ public class Main {
 
 	private static String getSLA(String arg1) {
 		StringBuilder stringBuilder = new StringBuilder();
-		if(arg1 != null) {
-		stringBuilder.append("(cf <- ");
-		stringBuilder.append(arg1);
-		stringBuilder.append(" <- 0)");
+		if (arg1 != null) {
+			stringBuilder.append("( cf <- ");
+			stringBuilder.append(arg1);
+			stringBuilder.append(" <- 0 )");
 		} else {
 			throw new IllegalArgumentException("Invalid SLA instruction");
 		}
@@ -210,90 +316,89 @@ public class Main {
 
 	private static String getSRA(String arg1) {
 		StringBuilder stringBuilder = new StringBuilder();
-		if(arg1 != null) {
-		stringBuilder.append("(bit7 -> ");
-		stringBuilder.append(arg1);
-		stringBuilder.append(" -> cf)");
+		if (arg1 != null) {
+			stringBuilder.append("( bit7 -> ");
+			stringBuilder.append(arg1);
+			stringBuilder.append(" -> cf )");
 		} else {
 			throw new IllegalArgumentException("Invalid SRA instruction");
 		}
 		return stringBuilder.toString();
 	}
-	
+
 	private static String getSRL(String arg1) {
 		StringBuilder stringBuilder = new StringBuilder();
-		if(arg1 != null) {
-		stringBuilder.append("(0 -> ");
-		stringBuilder.append(arg1);
-		stringBuilder.append(" -> cf)");
+		if (arg1 != null) {
+			stringBuilder.append("( 0 -> ");
+			stringBuilder.append(arg1);
+			stringBuilder.append(" -> cf )");
 		} else {
 			throw new IllegalArgumentException("Invalid SRL instruction");
 		}
 		return stringBuilder.toString();
 	}
-	
-	
+
 	private static String getRLCA() {
 		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.append("(cf <- a <- bit7)");
+		stringBuilder.append("( cf <- a <- bit7 )");
 		return stringBuilder.toString();
 	}
-	
+
 	private static String getRRCA() {
 		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.append("(bit0 -> a -> cf)");
+		stringBuilder.append("( bit0 -> a -> cf )");
 		return stringBuilder.toString();
 	}
-	
+
 	private static String getRRA() {
 		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.append("(cf -> a -> cf)");
+		stringBuilder.append("( cf -> a -> cf )");
 		return stringBuilder.toString();
 	}
-	
+
 	private static String getRLA() {
 		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.append("(cf <- a <- cf)");
+		stringBuilder.append("( cf <- a <- cf )");
 		return stringBuilder.toString();
 	}
-	
+
 	private static String getRR(String arg1) {
 		StringBuilder stringBuilder = new StringBuilder();
-		if(arg1 != null) {
-		stringBuilder.append("(cf -> ");
-		stringBuilder.append(arg1);
-		stringBuilder.append(" -> cf)");
+		if (arg1 != null) {
+			stringBuilder.append("( cf -> ");
+			stringBuilder.append(arg1);
+			stringBuilder.append(" -> cf )");
 		} else {
 			throw new IllegalArgumentException("Invalid RR instruction");
 		}
 		return stringBuilder.toString();
 	}
-	
+
 	private static String getRL(String arg1) {
 		StringBuilder stringBuilder = new StringBuilder();
-		if(arg1 != null) {
-		stringBuilder.append("(cf <- ");
-		stringBuilder.append(arg1);
-		stringBuilder.append(" <- cf)");
+		if (arg1 != null) {
+			stringBuilder.append("( cf <- ");
+			stringBuilder.append(arg1);
+			stringBuilder.append(" <- cf )");
 		} else {
 			throw new IllegalArgumentException("Invalid RL instruction");
 		}
 		return stringBuilder.toString();
 	}
-	
+
 	private static String getCP(String arg1, String arg2) {
 		StringBuilder stringBuilder = new StringBuilder();
 		if (arg1 != null) {
 			if (arg2 != null) {
-				stringBuilder.append("cf if (");
+				stringBuilder.append("cf if ( ");
 				stringBuilder.append(arg1);
 				stringBuilder.append(" < ");
 				stringBuilder.append(arg2);
-				stringBuilder.append(")");
+				stringBuilder.append(" )");
 			} else {
-				stringBuilder.append("cf if (a < ");
+				stringBuilder.append("cf if ( a < ");
 				stringBuilder.append(arg1);
-				stringBuilder.append(")");
+				stringBuilder.append(" )");
 			}
 		} else {
 			throw new IllegalArgumentException("Invalid cp instruction");
@@ -329,46 +434,46 @@ public class Main {
 			if (arg2 != null) {
 				stringBuilder.append(arg1);
 				stringBuilder.append(" = ");
-				stringBuilder.append("(");
+				stringBuilder.append("( ");
 				stringBuilder.append(arg1);
 				stringBuilder.append(" + ");
 				stringBuilder.append(arg2);
-				stringBuilder.append(")");
+				stringBuilder.append(" )");
 			} else {
-				stringBuilder.append("a = (a");
+				stringBuilder.append("a = ( a");
 				stringBuilder.append(" + ");
 				stringBuilder.append(arg1);
-				stringBuilder.append(")");
+				stringBuilder.append(" )");
 			}
 		} else {
 			throw new IllegalArgumentException("Invalid add instruction");
 		}
 		return stringBuilder.toString();
 	}
-	
+
 	private static String getADC(String arg1, String arg2) {
 		StringBuilder stringBuilder = new StringBuilder();
 		if (arg1 != null) {
 			if (arg2 != null) {
 				stringBuilder.append(arg1);
 				stringBuilder.append(" = ");
-				stringBuilder.append("(");
+				stringBuilder.append("( ");
 				stringBuilder.append(arg1);
 				stringBuilder.append(" + ");
 				stringBuilder.append(arg2);
-				stringBuilder.append(" + cf)");
+				stringBuilder.append(" + cf )");
 			} else {
-				stringBuilder.append("a = (a");
+				stringBuilder.append("a = ( a");
 				stringBuilder.append(" + ");
 				stringBuilder.append(arg1);
-				stringBuilder.append(" + cf)");
+				stringBuilder.append(" + cf )");
 			}
 		} else {
 			throw new IllegalArgumentException("Invalid adc instruction");
 		}
 		return stringBuilder.toString();
 	}
-	
+
 	private static String getSUB(String arg1, String arg2) {
 		StringBuilder stringBuilder = new StringBuilder();
 		if (arg1 != null) {
@@ -398,16 +503,16 @@ public class Main {
 			if (arg2 != null) {
 				stringBuilder.append(arg1);
 				stringBuilder.append(" = ");
-				stringBuilder.append("(");
+				stringBuilder.append("( ");
 				stringBuilder.append(arg1);
 				stringBuilder.append(" - ");
 				stringBuilder.append(arg2);
-				stringBuilder.append(" - cf)");
+				stringBuilder.append(" - cf )");
 			} else {
-				stringBuilder.append("a = (a");
+				stringBuilder.append("a = ( a");
 				stringBuilder.append(" - ");
 				stringBuilder.append(arg1);
-				stringBuilder.append(" - cf)");
+				stringBuilder.append(" - cf )");
 			}
 		} else {
 			throw new IllegalArgumentException("Invalid sbc instruction");
@@ -415,22 +520,26 @@ public class Main {
 		return stringBuilder.toString();
 	}
 
-	
 	private static String getXOR(String arg1, String arg2) {
 		StringBuilder stringBuilder = new StringBuilder();
 		if (arg1 != null) {
 			if (arg2 != null) {
 				stringBuilder.append(arg1);
 				stringBuilder.append(" = ");
-				stringBuilder.append("(");
+				stringBuilder.append("( ");
 				stringBuilder.append(arg1);
 				stringBuilder.append(" ^ ");
 				stringBuilder.append(arg2);
+				stringBuilder.append(" )");
 			} else {
-				stringBuilder.append("a = (a");
+				if(arg1.toLowerCase().equals("a")) {
+					stringBuilder.append("a = 0");
+				} else {
+				stringBuilder.append("a = ( a");
 				stringBuilder.append(" ^ ");
 				stringBuilder.append(arg1);
-				stringBuilder.append(")");
+				stringBuilder.append(" )");
+				}
 			}
 		} else {
 			throw new IllegalArgumentException("Invalid xor instruction");
@@ -442,15 +551,18 @@ public class Main {
 		StringBuilder stringBuilder = new StringBuilder();
 		if (arg1 != null) {
 			if (arg2 != null) {
+				stringBuilder.append("( ");
 				stringBuilder.append(arg1);
 				stringBuilder.append(" = ");
 				stringBuilder.append(arg1);
 				stringBuilder.append(" | ");
 				stringBuilder.append(arg2);
+				stringBuilder.append(" )");
 			} else {
-				stringBuilder.append("a = a");
+				stringBuilder.append("a = ( a");
 				stringBuilder.append(" | ");
 				stringBuilder.append(arg1);
+				stringBuilder.append(" )");
 			}
 		} else {
 			throw new IllegalArgumentException("Invalid or instruction");
@@ -464,16 +576,16 @@ public class Main {
 			if (arg2 != null) {
 				stringBuilder.append(arg1);
 				stringBuilder.append(" = ");
-				stringBuilder.append("(");
+				stringBuilder.append("( ");
 				stringBuilder.append(arg1);
 				stringBuilder.append(" & ");
 				stringBuilder.append(arg2);
-				stringBuilder.append(")");
+				stringBuilder.append(" )");
 			} else {
-				stringBuilder.append("a = (a");
+				stringBuilder.append("a = ( a");
 				stringBuilder.append(" & ");
 				stringBuilder.append(arg1);
-				stringBuilder.append(")");
+				stringBuilder.append(" )");
 			}
 		} else {
 			throw new IllegalArgumentException("Invalid and instruction");
@@ -489,7 +601,7 @@ public class Main {
 				stringBuilder.append(" = ");
 				stringBuilder.append(arg2);
 			} else {
-				stringBuilder.append("a = ");
+				stringBuilder.append(" a = ");
 				stringBuilder.append(arg1);
 			}
 		} else {
