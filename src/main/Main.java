@@ -16,10 +16,12 @@ public class Main {
 	// TODO Add variable assignment replacement to jumps and bit operations.
 	// TODO Follow variable assignment when push and pop are used.
 	// TODO 3rd step: Follow register values through calls and jumps.
-	
-	 private static File fileIn = new File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\engine.asm");
-	 //private static File fileIn = new
-	 //File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\test.txt");
+
+	private static HashMap<String, HashMap<String, String>> routineEqualMaps = new HashMap<>();
+
+	private static File fileIn = new File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\engine.asm");
+	// private static File fileIn = new
+	// File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\test.txt");
 
 	public static void main(String[] args) {
 		condenseAsm(fileIn);
@@ -68,7 +70,10 @@ public class Main {
 		Scanner lhsScanner;
 		Scanner rhsScanner;
 		String s;
+		String routineName = null;
+		int routineIndex = -1;
 		List<String> comments = new ArrayList<>();
+		boolean updateName = false;
 		while (scanner.hasNext()) {
 			lhs = null;
 			rhs = null;
@@ -77,8 +82,23 @@ public class Main {
 			lineScanner = new Scanner(line);
 			if (lineScanner.hasNext()) {
 				first = lineScanner.next();
-				if (first.charAt(0) == '.' || first.charAt(first.length() - 1) == ':' 
-						|| first.toLowerCase().equals("pop") || first.toLowerCase().equals("call")) {
+				if (first.charAt(0) == '.' || first.charAt(first.length() - 1) == ':'
+						|| first.toLowerCase().equals("pop") || first.toLowerCase().equals("call")
+						|| first.toLowerCase().equals("ret")) {
+					if (first.charAt(0) == '.' || first.charAt(first.length() - 1) == ':') {
+						updateName = true;
+					}
+					if (routineName != null) {
+						routineEqualMaps.put(routineName+routineIndex, new HashMap<>(equalsMap));
+					}
+					routineIndex++;
+					if (updateName) {
+						routineIndex = 0;
+						first = first.replace(".", "");
+						first = first.replace(":", "");
+						routineName = first;
+						updateName = false;
+					}
 					equalsMap.clear();
 				}
 				if (line.contains("=")) {
@@ -99,7 +119,7 @@ public class Main {
 								while (lhsScanner.hasNext()) {
 									s = lhsScanner.next();
 									if (equalsMap.containsKey(s)) {
-										lhs = lhs.replace(" "+ s + " ", " " + (String)equalsMap.get(s) + " ");
+										lhs = lhs.replace(" " + s + " ", " " + (String) equalsMap.get(s) + " ");
 									}
 								}
 							}
@@ -108,7 +128,7 @@ public class Main {
 							while (rhsScanner.hasNext()) {
 								s = rhsScanner.next();
 								if (equalsMap.containsKey(s)) {
-									rhs = rhs.replace(" "+ s + " ", " " + (String)equalsMap.get(s) + " ");
+									rhs = rhs.replace(" " + s + " ", " " + (String) equalsMap.get(s) + " ");
 								}
 							}
 							equalsMap.put(lhs.trim(), rhs.trim());
@@ -117,7 +137,7 @@ public class Main {
 							comments.add(args[i]);
 						}
 						if (lhs != null && rhs != null) {
-							//out.write(leadingWhiteSpace);
+							// out.write(leadingWhiteSpace);
 							out.write(lhs);
 							out.write("=");
 							out.write(rhs);
@@ -296,8 +316,8 @@ public class Main {
 				for (String s : fluff) {
 					out.write(s);
 				}
-				if(fluff.isEmpty()) {
-					out.write(" ");					
+				if (fluff.isEmpty()) {
+					out.write(" ");
 				}
 				printTheRest(lineScanner, out);
 			}
@@ -536,13 +556,13 @@ public class Main {
 				stringBuilder.append(arg2);
 				stringBuilder.append(" )");
 			} else {
-				if(arg1.toLowerCase().equals("a")) {
+				if (arg1.toLowerCase().equals("a")) {
 					stringBuilder.append("a = 0");
 				} else {
-				stringBuilder.append("a = ( a");
-				stringBuilder.append(" ^ ");
-				stringBuilder.append(arg1);
-				stringBuilder.append(" )");
+					stringBuilder.append("a = ( a");
+					stringBuilder.append(" ^ ");
+					stringBuilder.append(arg1);
+					stringBuilder.append(" )");
 				}
 			}
 		} else {
