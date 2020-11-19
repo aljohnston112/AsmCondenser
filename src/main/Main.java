@@ -13,11 +13,16 @@ import java.util.Scanner;
 
 public class Main {
 
+	// TODO delete unnecessary assignments.
 	// TODO Add variable assignment replacement to jumps and bit operations.
 	// TODO Follow variable assignment when push and pop are used.
-	// TODO 3rd step: Follow register values through calls and jumps.
+	// TODO Follow register values through calls and jumps.
+	// TODO Update equals map for registers where two registers are written and then
+	// accessed as one.
 
 	private static HashMap<String, HashMap<String, String>> routineEqualMaps = new HashMap<>();
+
+	private static HashMap<String, ArrayList<String>> callMap = new HashMap<>();
 
 	private static File fileIn = new File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\engine.asm");
 	// private static File fileIn = new
@@ -61,35 +66,27 @@ public class Main {
 		Map<String, String> equalsMap = new HashMap<>();
 		String line;
 		Scanner lineScanner;
-		String leadingWhiteSpace;
 		String first;
-		String[] args;
-		String[] realArgs;
-		String lhs;
-		String rhs;
-		Scanner lhsScanner;
-		Scanner rhsScanner;
-		String s;
 		String routineName = null;
+		String destination = null;
 		int routineIndex = -1;
 		List<String> comments = new ArrayList<>();
 		boolean updateName = false;
 		while (scanner.hasNext()) {
-			lhs = null;
-			rhs = null;
 			line = scanner.nextLine();
-			leadingWhiteSpace = getLeadingWhiteSpace(line);
 			lineScanner = new Scanner(line);
 			if (lineScanner.hasNext()) {
 				first = lineScanner.next();
+				// Reset the equals map after reaching a spot that invalidates it
 				if (first.charAt(0) == '.' || first.charAt(first.length() - 1) == ':'
 						|| first.toLowerCase().equals("pop") || first.toLowerCase().equals("call")
-						|| first.toLowerCase().equals("ret")) {
+						|| first.toLowerCase().equals("ret") || first.toLowerCase().equals("reti")
+						|| first.toLowerCase().equals("rst")) {
 					if (first.charAt(0) == '.' || first.charAt(first.length() - 1) == ':') {
 						updateName = true;
 					}
 					if (routineName != null) {
-						routineEqualMaps.put(routineName+routineIndex, new HashMap<>(equalsMap));
+						routineEqualMaps.put(routineName + routineIndex, new HashMap<>(equalsMap));
 					}
 					routineIndex++;
 					if (updateName) {
@@ -101,55 +98,12 @@ public class Main {
 					}
 					equalsMap.clear();
 				}
+				if (first.toLowerCase().equals("jp") || first.toLowerCase().equals("jr")
+						|| first.toLowerCase().equals("call") || first.toLowerCase().equals("rst")) {
+					updateCallMap(lineScanner, routineName, destination);
+				}
 				if (line.contains("=")) {
-					args = line.split(";");
-					if (args.length > 0) {
-						String realLine = args[0];
-						realArgs = realLine.split("=");
-						if (realArgs.length > 0) {
-							lhs = realArgs[0];
-						}
-						if (realArgs.length > 1) {
-							rhs = realArgs[1];
-						}
-						if (lhs != null && rhs != null) {
-							if (lhs.contains("[") || lhs.contains("]")) {
-								lhsScanner = new Scanner(lhs);
-								lhsScanner.useDelimiter("[\\p{javaWhitespace}\\[\\]\\+\\-\\^\\|\\&\\(\\)]+");
-								while (lhsScanner.hasNext()) {
-									s = lhsScanner.next();
-									if (equalsMap.containsKey(s)) {
-										lhs = lhs.replace(" " + s + " ", " " + (String) equalsMap.get(s) + " ");
-									}
-								}
-							}
-							rhsScanner = new Scanner(rhs);
-							rhsScanner.useDelimiter("[\\p{javaWhitespace}\\[\\]\\+\\-\\^\\|\\&\\(\\)]+");
-							while (rhsScanner.hasNext()) {
-								s = rhsScanner.next();
-								if (equalsMap.containsKey(s)) {
-									rhs = rhs.replace(" " + s + " ", " " + (String) equalsMap.get(s) + " ");
-								}
-							}
-							equalsMap.put(lhs.trim(), rhs.trim());
-						}
-						for (int i = 1; i < args.length; i++) {
-							comments.add(args[i]);
-						}
-						if (lhs != null && rhs != null) {
-							// out.write(leadingWhiteSpace);
-							out.write(lhs);
-							out.write("=");
-							out.write(rhs);
-							for (String string : comments) {
-								out.write(";");
-								out.write(string);
-							}
-							comments.clear();
-						}
-					} else {
-						out.write(line);
-					}
+					updateLineAndEqualsMap(equalsMap, line, comments, out);
 				} else {
 					out.write(line);
 				}
@@ -157,6 +111,112 @@ public class Main {
 			out.write("\n");
 		}
 		out.flush();
+	}
+
+	private static void updateCallMap(Scanner lineScanner, String routineName, String destination) {
+		String s;
+		String lastS = null;
+		while (lineScanner.hasNext()) {
+			s = lineScanner.next();
+			if (s.contains(";")) {
+				eatTheRest(lineScanner);
+			} else {
+				lastS = s;
+			}
+			if (lastS != null) {
+				destination = lastS;
+			}
+		}
+		if (routineName != null && destination != null) {
+			if (callMap.get(routineName) == null) {
+				callMap.put(routineName, new ArrayList<>());
+			}
+			callMap.get(routineName).add(destination);
+			destination = null;
+		}
+	}
+
+	private static void updateLineAndEqualsMap(Map<String, String> equalsMap, String line, List<String> comments,
+			BufferedWriter out) throws IOException {
+		String[] args;
+		String[] realArgs;
+		String lhs = null;
+		String rhs = null;
+		Scanner lhsScanner;
+		Scanner rhsScanner;
+		String s;
+		args = line.split(";");
+		if (args.length > 0) {
+			String realLine = args[0];
+			realArgs = realLine.split("=");
+			if (realArgs.length > 0) {
+				lhs = realArgs[0];
+			}
+			if (realArgs.length > 1) {
+				rhs = realArgs[1];
+			}
+			if (lhs != null && rhs != null) {
+				if (lhs.contains("[") || lhs.contains("]")) {
+					lhsScanner = new Scanner(lhs);
+					lhsScanner.useDelimiter("[\\p{javaWhitespace}\\[\\]\\+\\-\\^\\|\\&\\(\\)]+");
+					while (lhsScanner.hasNext()) {
+						s = lhsScanner.next();
+						lhs = replaceVariable(equalsMap, lhs, s);
+					}
+				}
+				rhsScanner = new Scanner(rhs);
+				rhsScanner.useDelimiter("[\\p{javaWhitespace}\\[\\]\\+\\-\\^\\|\\&\\(\\)]+");
+				while (rhsScanner.hasNext()) {
+					s = rhsScanner.next();
+					rhs = replaceVariable(equalsMap, rhs, s);
+				}
+				equalsMap.put(lhs.trim(), rhs.trim());
+			}
+			for (int i = 1; i < args.length; i++) {
+				comments.add(args[i]);
+			}
+			if (lhs != null && rhs != null) {
+				out.write(lhs);
+				out.write("=");
+				out.write(rhs);
+				for (String string : comments) {
+					out.write(";");
+					out.write(string);
+				}
+				comments.clear();
+			}
+		} else {
+			out.write(line);
+		}
+	}
+
+	private static String replaceVariable(Map<String, String> equalsMap, String line, String s) {
+		boolean incHL = false;
+		boolean decHL = false;
+		if (equalsMap.containsKey("hl")) {
+			if (s.toLowerCase().equals("hli")) {
+				s = s.replace("hli", "hl");
+				line = line.replace("hli", "hl");
+				incHL = true;
+			}
+			if (s.toLowerCase().equals("hld")) {
+				s = s.replace("hld", "hl");
+				line = line.replace("hld", "hl");
+				decHL = true;
+			}
+		}
+		if (equalsMap.containsKey(s)) {
+			line = line.replace(" " + s + " ", " " + (String) equalsMap.get(s) + " ");
+		}
+		if (incHL) {
+			line = line.replace("hl]", (String) equalsMap.get("hl") + "++]");
+			equalsMap.put("hl", (String) equalsMap.get("hl") + "++ ");
+		}
+		if (decHL) {
+			line = line.replace("hl]", (String) equalsMap.get("hl") + "--]");
+			equalsMap.put("hl", (String) equalsMap.get("hl") + "-- ");
+		}
+		return line;
 	}
 
 	private static void refactorAsm(Scanner scanner, BufferedWriter out) throws IOException {
@@ -651,6 +711,12 @@ public class Main {
 	private static void printTheRest(Scanner scanner, BufferedWriter out) throws IOException {
 		if (scanner.hasNext()) {
 			out.write(scanner.nextLine());
+		}
+	}
+
+	private static void eatTheRest(Scanner scanner) {
+		while (scanner.hasNext()) {
+			scanner.next();
 		}
 	}
 
