@@ -24,9 +24,9 @@ public class Main {
 
 	private static HashMap<String, ArrayList<String>> callMap = new HashMap<>();
 
-	private static File fileIn = new File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\engine.asm");
-	// private static File fileIn = new
-	// File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\test.txt");
+	//private static File fileIn = new File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\engine.asm");
+	 private static File fileIn = new
+	 File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\test.txt");
 
 	public static void main(String[] args) {
 		condenseAsm(fileIn);
@@ -193,7 +193,6 @@ public class Main {
 	private static String replaceVariable(Map<String, String> equalsMap, String line, String s) {
 		boolean incHL = false;
 		boolean decHL = false;
-		if (equalsMap.containsKey("hl")) {
 			if (s.toLowerCase().equals("hli")) {
 				s = s.replace("hli", "hl");
 				line = line.replace("hli", "hl");
@@ -204,18 +203,27 @@ public class Main {
 				line = line.replace("hld", "hl");
 				decHL = true;
 			}
-		}
 		if (equalsMap.containsKey(s)) {
 			line = line.replace(" " + s + " ", " " + (String) equalsMap.get(s) + " ");
+			if (incHL) {
+				line = line.replace("hl]", (String) equalsMap.get("hl") + "++]");
+				equalsMap.put("hl", (String) equalsMap.get("hl") + "++ ");
+			}
+			if (decHL) {
+				line = line.replace("hl]", (String) equalsMap.get("hl") + "--]");
+				equalsMap.put("hl", (String) equalsMap.get("hl") + "-- ");
+			}
+		} else {
+			if (incHL) {
+				line = line.replace("hl]", "hl++]");	
+				equalsMap.put("hl", "hl++ ");
+				}
+			if (decHL) {
+				line = line.replace("hl]", "hl--]");
+				equalsMap.put("hl", "hl-- ");
+			}
 		}
-		if (incHL) {
-			line = line.replace("hl]", (String) equalsMap.get("hl") + "++]");
-			equalsMap.put("hl", (String) equalsMap.get("hl") + "++ ");
-		}
-		if (decHL) {
-			line = line.replace("hl]", (String) equalsMap.get("hl") + "--]");
-			equalsMap.put("hl", (String) equalsMap.get("hl") + "-- ");
-		}
+		
 		return line;
 	}
 
