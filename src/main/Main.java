@@ -204,11 +204,11 @@ public class Main {
 			line = line.replace(" " + s + " ", " " + (String) equalsMap.get(s) + " ");
 			line = line.replace("[" + s + "]", "[" + (String) equalsMap.get(s) + "]");
 			if (incHL) {
-				line = line.replace("[" + (String) equalsMap.get(s) + "]", "[( " + equalsMap.get(s) + " + 1 )]");
+				line = line.replace("[" + (String) equalsMap.get(s) + "]", "[" + equalsMap.get(s) + "]");
 				equalsMap.put(s, (String) "( " +  (String) equalsMap.get(s) + " + 1 )");
 			}
 			if (decHL) {
-				line = line.replace("[" + (String) equalsMap.get(s) + "]", "[( " + equalsMap.get(s) + " - 1 )]");
+				line = line.replace("[" + (String) equalsMap.get(s) + "]", "[" + equalsMap.get(s) + "]");
 				equalsMap.put(s, "( " + (String) equalsMap.get(s) + " - 1 )");
 			}
 		} else {
