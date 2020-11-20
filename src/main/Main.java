@@ -204,21 +204,21 @@ public class Main {
 			line = line.replace(" " + s + " ", " " + (String) equalsMap.get(s) + " ");
 			line = line.replace("[" + s + "]", "[" + (String) equalsMap.get(s) + "]");
 			if (incHL) {
-				line = line.replace("hl]", (String) equalsMap.get("hl") + "++]");
-				equalsMap.put("hl", (String) equalsMap.get("hl") + "++ ");
+				line = line.replace("[" + (String) equalsMap.get(s) + "]", "[( " + equalsMap.get(s) + " + 1 )]");
+				equalsMap.put(s, (String) "( " +  (String) equalsMap.get(s) + " + 1 )");
 			}
 			if (decHL) {
-				line = line.replace("hl]", (String) equalsMap.get("hl") + "--]");
-				equalsMap.put("hl", (String) equalsMap.get("hl") + "-- ");
+				line = line.replace("[" + (String) equalsMap.get(s) + "]", "[( " + equalsMap.get(s) + " - 1 )]");
+				equalsMap.put(s, "( " + (String) equalsMap.get(s) + " - 1 )");
 			}
 		} else {
 			if (incHL) {
-				line = line.replace("hl]", "hl++]");	
-				equalsMap.put("hl", "hl++ ");
+				line = line.replace("[" + s + "]", "[(" + s + " + 1)]");
+				equalsMap.put(s, "( " + s + " + 1)");
 				}
 			if (decHL) {
-				line = line.replace("hl]", "hl--]");
-				equalsMap.put("hl", "hl-- ");
+				line = line.replace("[" + s + "]", "[(" + s + " - 1)]");
+				equalsMap.put(s, "( " + s + " - 1)");
 			}
 		}
 		
