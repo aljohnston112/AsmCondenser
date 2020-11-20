@@ -1,8 +1,8 @@
 # GBZ80AsmCondenser
 
-The goal of this project is to make gbz80 asm easier to follow, by following register values through calls and jumps automatically. The program will take a method name, go up the call stack to find unknown variables on the right hand side of instructions, or in brackets on the left hand side. It will then fill in calls with the code called.
+The goal of this project is to make gbz80 asm easier to follow, by following register values through calls and jumps automatically. 
 
-First, the progam will take a routine name and search for it's usages in the whole program. Then it will find unknown variables on the right hand side of instructions, or in brackets on the left hand side, from the calling routines, asking the user which call stack to trace. After all unknowns have been found, they will replace the unknowns.
+The program will take a method name. Then the progam will fill in calls and jumps with the code called or jumped to. Then the program will go up the call stack to find unknown variables on the right hand side of instructions, or in brackets on the left hand side, using user input to choose the call trace.
 
 This will be done with the following steps:
 The first step will write code that is called or jumped to inline.
