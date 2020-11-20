@@ -24,9 +24,9 @@ public class Main {
 
 	private static HashMap<String, ArrayList<String>> callMap = new HashMap<>();
 
-	//private static File fileIn = new File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\engine.asm");
-	 private static File fileIn = new
-	 File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\test.txt");
+	private static File fileIn = new File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\engine.asm");
+	// private static File fileIn = new
+	// File("C:\\Users\\aljoh\\Documents\\Programming\\TEST\\test.txt");
 
 	public static void main(String[] args) {
 		condenseAsm(fileIn);
@@ -68,7 +68,6 @@ public class Main {
 		Scanner lineScanner;
 		String first;
 		String routineName = null;
-		String destination = null;
 		int routineIndex = -1;
 		List<String> comments = new ArrayList<>();
 		boolean updateName = false;
@@ -97,10 +96,7 @@ public class Main {
 						updateName = false;
 					}
 					equalsMap.clear();
-				}
-				if (first.toLowerCase().equals("jp") || first.toLowerCase().equals("jr")
-						|| first.toLowerCase().equals("call") || first.toLowerCase().equals("rst")) {
-					updateCallMap(lineScanner, routineName, destination);
+					updateCallMap(lineScanner, routineName);
 				}
 				if (line.contains("=")) {
 					updateLineAndEqualsMap(equalsMap, line, comments, out);
@@ -113,7 +109,8 @@ public class Main {
 		out.flush();
 	}
 
-	private static void updateCallMap(Scanner lineScanner, String routineName, String destination) {
+	private static void updateCallMap(Scanner lineScanner, String routineName) {
+		String destination =null;
 		String s;
 		String lastS = null;
 		while (lineScanner.hasNext()) {
@@ -127,7 +124,7 @@ public class Main {
 				destination = lastS;
 			}
 		}
-		if (routineName != null && destination != null) {
+		if (routineName != null) {
 			if (callMap.get(routineName) == null) {
 				callMap.put(routineName, new ArrayList<>());
 			}
@@ -205,6 +202,7 @@ public class Main {
 			}
 		if (equalsMap.containsKey(s)) {
 			line = line.replace(" " + s + " ", " " + (String) equalsMap.get(s) + " ");
+			line = line.replace("[" + s + "]", "[" + (String) equalsMap.get(s) + "]");
 			if (incHL) {
 				line = line.replace("hl]", (String) equalsMap.get("hl") + "++]");
 				equalsMap.put("hl", (String) equalsMap.get("hl") + "++ ");
