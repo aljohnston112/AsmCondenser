@@ -5,7 +5,7 @@ from collections import defaultdict
 import pandas as pandas
 
 from macro_pass import Macro_List_File
-from src.config import PokecrystalFolder, TempFolder
+from config import PokecrystalFolder, TempFolder
 
 RoutineName = "_UpdateSound::"
 TempFile = TempFolder + RoutineName
@@ -165,35 +165,62 @@ def write_add(of, tokens):
     of.write(" += ")
     of.write(tokens[2].strip())
     of.write("\n")
-    if left == "hl":
+    if left == "hl" or left == "[hl]":
         of.write("n = 0")
         of.write("\n")
-        of.write("h = carry from bit 11")
+        of.write("h = (")
+        of.write(left)
+        of.write(" > 4095)")
         of.write("\n")
-        of.write("c = carry from bit 15")
+        of.write("c = (")
+        of.write(left)
+        of.write(" > 65535)")
+        of.write("\n")
+        of.write("if (")
+        of.write(left)
+        of.write(" > 65535) {")
+        of.write("\n")
+        of.write(left)
+        of.write(" -= 65535)\n}")
     elif left == "a":
         of.write("z if not ")
         of.write(left)
         of.write("\n")
         of.write("n = 0")
         of.write("\n")
-        of.write("h = carry from bit 3")
+        of.write("h = (")
+        of.write(left)
+        of.write(" > 15)")
         of.write("\n")
-        of.write("c = carry from bit 7")
+        of.write("c = (")
+        of.write(left)
+        of.write(" > 255)")
+        of.write("if (")
+        of.write(left)
+        of.write(" > 255) {")
+        of.write("\n")
+        of.write(left)
+        of.write(" -= 255)\n}")
     else:
+        print(tokens)
         raise Exception
     of.write("\n")
 
 
 def write_bit(of, tokens):
     assert len(tokens) == 3
-    of.write("z = not bit ")
     bit = tokens[1].strip()
     if bit[-1] == ",":
         bit = bit[:-1]
-    of.write(bit)
-    of.write(" of ")
+    of.write("temporary_variable = ")
     of.write(tokens[2].strip())
+    of.write(" & (1 << ")
+    of.write(bit)
+    of.write(")")
+    of.write("\n")
+    of.write("z = (temporary_variable < (1 << ")
+    of.write(bit)
+    of.write("))")
     of.write("\n")
     of.write("n = 0")
     of.write("\n")
@@ -343,7 +370,11 @@ def write_inc(of, tokens):
         of.write("n = 0")
         of.write("\n")
         of.write("h = carry from bit 3")
+    elif var == "bc" or var == "de" or var == "hl" or var == "sp":
+        of.write(var)
+        of.write("++")
     else:
+        print(tokens)
         raise Exception
     of.write("\n")
 
@@ -405,6 +436,66 @@ def write_scf(of):
     of.write("\n")
 
 
+def write_swap(of, line, tokens):
+    assert len(tokens) == 2
+    of.write(line)
+    of.write("z = not ")
+    of.write(tokens[1])
+    of.write("\n")
+    of.write("n = 0")
+    of.write("\n")
+    of.write("h = 0")
+    of.write("\n")
+    of.write("c = 0")
+    of.write("\n")
+
+
+def write_sub(of, tokens):
+    assert len(tokens) == 2
+    of.write("a -= ")
+    of.write(tokens[1])
+    of.write("\n")
+    of.write("z = not a")
+    of.write("\n")
+    of.write("n = 0")
+    of.write("\n")
+    of.write("h = no borrow from bit 4")
+    of.write("\n")
+    of.write("c = no borrow")
+    of.write("\n")
+
+
+def write_sbc(of, tokens):
+    assert len(tokens) == 2
+    of.write("a -= (")
+    of.write(tokens[1])
+    of.write(" + c)")
+    of.write("\n")
+    of.write("z = not a")
+    of.write("\n")
+    of.write("n = 1")
+    of.write("\n")
+    of.write("h = no borrow from bit 4")
+    of.write("\n")
+    of.write("c = no borrow")
+    of.write("\n")
+
+
+def write_rlca(of, tokens):
+    assert len(tokens) == 1
+    of.write("a *= 2")
+    of.write("\n")
+    of.write("c = (a > 127)")
+    of.write("\n")
+    of.write("a += c")
+    of.write("\n")
+    of.write("z = not a")
+    of.write("\n")
+    of.write("n = 0")
+    of.write("\n")
+    of.write("h = 0")
+
+
 def main():
     macros = get_macros().columns.to_list()
     file, line_number = get_filename_and_line_number_of_routine(PokecrystalFolder, RoutineName)
@@ -419,9 +510,22 @@ def main():
                 comment = line.split(";")[-1]
                 if line != "" and line[0] != ";":
                     command = tokens[0].strip()
-                    if "<<" in command:
-                        pass
-                        # TODO order of ops
+                    if "&" in line:
+                        token_number = -1
+                        for i, token in enumerate(tokens):
+                            if "&" in token:
+                                token_number = i
+                        if token_number != -1:
+                            tokens[token_number - 1:token_number + 2] = \
+                                [tokens[token_number - 1] + " " + tokens[token_number] + " " + tokens[token_number + 1]]
+                    if "<<" in line:
+                        token_number = -1
+                        for i, token in enumerate(tokens):
+                            if "<<" in token:
+                                token_number = i
+                        if token_number != -1:
+                            tokens[token_number-1:token_number+2] = \
+                                [tokens[token_number-1] + " " + tokens[token_number] + " " + tokens[token_number + 1]]
                     if command == "ld" or command == "ldh":
                         write_ld(of, tokens)
                     elif command == "and":
@@ -467,12 +571,20 @@ def main():
                         write_rept(f, of, tokens)
                     elif command == "endr":
                         of.write("}\n")
+                    elif command == "swap":
+                        write_swap(of, line, tokens)
+                    elif command == "sub":
+                        write_sub(of, tokens)
+                    elif command == "sbc":
+                        write_sbc(of, tokens)
+                    elif command == "rlca":
+                        write_rlca(of, tokens)
                     elif command[-1] == ":":
                         write_routine(of, tokens)
                     elif tokens[0] in macros:
                         of.write(line)
                         of.write("\n")
-                    elif "dw" in line:
+                    elif "dw" in line or "db" in line:
                         of.write(line)
                         of.write("\n")
                     else:

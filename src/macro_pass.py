@@ -1,6 +1,6 @@
 import glob
 
-from src.config import PokecrystalFolder, TempFolder
+from config import PokecrystalFolder, TempFolder
 
 Macro_List_File = TempFolder + "macro_list"
 
