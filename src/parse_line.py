@@ -1,3 +1,4 @@
+from src.temp.asm_parser import assert_start_and_strip
 
 
 def get_comment(line):
@@ -32,10 +33,28 @@ def parse_line(file, temp_file, line):
             character_map_conductor.pop_character_map()
         elif stripped_line.split()[1].lower() == "macro":
             from src.parse_macro import parse_macro
-            parse_macro(file, temp_file, line)
+            parse_macro(file, temp_file, line_without_comment)
+        elif "equs" in line_without_comment.lower():
+            parse_equs(temp_file, line_without_comment)
         else:
             print(line)
             raise Exception
         temp_file.write(comment)
     else:
         temp_file.write(line)
+
+
+def write_equals(temp_file, tokens):
+    assert len(tokens) == 2
+    left = tokens[0].strip()
+    right = tokens[1].strip()
+    temp_file.write(left + " = " + right)
+
+
+def parse_equs(temp_file, line_without_comment):
+    tokens = line_without_comment.split("EQUS")
+    write_equals(temp_file, tokens)
+
+
+
+

@@ -1,11 +1,15 @@
 from src.config import TempFolder
 
 Macro_List_File = TempFolder + "macro_list"
+Macro_list = None
 
 
 def get_macros():
-    import pandas
-    return pandas.read_csv(Macro_List_File).columns.to_list()
+    global Macro_list
+    if Macro_list is None:
+        import pandas
+        Macro_list = pandas.read_csv(Macro_List_File).columns.to_list()
+    return Macro_list
 
 
 def parse_macros():
