@@ -28,7 +28,7 @@ class CharacterMapConductor:
         self.character_map_stack.append(character_map)
         self.string_to_byte_dict = {}
 
-    def parse_charmap(self, temp_file, line):
+    def parse_charmap(self, line):
         import shlex
         args = shlex.split(line, posix=False)[1:]
         if len(args) == 3:

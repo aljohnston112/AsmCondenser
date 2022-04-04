@@ -2,10 +2,9 @@ import glob
 import os
 from collections import defaultdict
 
-import pandas as pandas
-
-from macro_pass import Macro_List_File
 from config import PokecrystalFolder, TempFolder
+from src.macro_pass import get_macros
+from src.temp.asm_parser import parse_ld
 
 RoutineName = "_UpdateSound::"
 TempFile = TempFolder + RoutineName
@@ -71,39 +70,8 @@ def skip_and_return_comments(f, line_number):
     return comments
 
 
-def get_macros():
-    return pandas.read_csv(Macro_List_File)
-
-
 def write_comment(of, line):
     of.write(line)
-    of.write("\n")
-
-
-def write_ld(of, tokens):
-    if len(tokens) == 3:
-        of.write(tokens[1].strip()[:-1])
-        of.write(" = ")
-        of.write(tokens[2].strip())
-    elif len(tokens) > 3:
-        index = 0
-        for i, token in enumerate(tokens):
-            if ',' in token:
-                index = i
-        lhs = []
-        for i in range(1, index + 1):
-            lhs.extend(tokens[index].strip())
-        lhs = lhs[:-1]
-        of.write(lhs[0])
-        of.write(" = ")
-        rhs = []
-        for i in range(index + 1, len(tokens)):
-            rhs.extend(tokens[index].strip())
-        of.write(rhs[0])
-    else:
-        print(len(tokens))
-        print(tokens)
-        raise Exception
     of.write("\n")
 
 
@@ -526,9 +494,7 @@ def main():
                         if token_number != -1:
                             tokens[token_number-1:token_number+2] = \
                                 [tokens[token_number-1] + " " + tokens[token_number] + " " + tokens[token_number + 1]]
-                    if command == "ld" or command == "ldh":
-                        write_ld(of, tokens)
-                    elif command == "and":
+                    if command == "and":
                         write_and(of, tokens)
                     elif command == "ret":
                         write_ret(of, tokens)
@@ -597,4 +563,5 @@ def main():
                     write_comment(of, ";" + comment)
 
 
-main()
+if __name__ == "__main__":
+    main()

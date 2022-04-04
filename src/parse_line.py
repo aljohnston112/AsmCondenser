@@ -20,9 +20,10 @@ def parse_line(file, temp_file, line):
         elif stripped_line[0] == ";":
             pass
         elif command == "charmap":
+            # Case where ; is a character
             if line_without_comment[-1] == "\"":
                 line_without_comment += ";" + line.split(";")[1]
-            character_map_conductor.parse_charmap(temp_file, line_without_comment)
+            character_map_conductor.parse_charmap(line_without_comment)
         elif command == "pushc":
             character_map_conductor.push_character_map()
         elif command == "newcharmap":
@@ -30,7 +31,7 @@ def parse_line(file, temp_file, line):
         elif command == "popc":
             character_map_conductor.pop_character_map()
         elif stripped_line.split()[1].lower() == "macro":
-            from src.temp.parse_macro import parse_macro
+            from src.parse_macro import parse_macro
             parse_macro(file, temp_file, line)
         else:
             print(line)
