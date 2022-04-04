@@ -39,7 +39,10 @@ class MacroParser:
         self.labels = []
         for line in macro_lines:
             stripped_line = line.strip()
-            if "assert" in line:
+            line_without_comment = line.split(";")[0]
+            from src.parse_line import get_comment
+            comment = get_comment(line)
+            if "assert " in line:
                 self.add_line(stripped_line)
             elif ":" in line:
                 self.parse_colon(stripped_line)
@@ -53,9 +56,12 @@ class MacroParser:
                 self.tabs -= 1
             elif "endm" == stripped_line.lower():
                 self.end(temp_file)
+            elif "db" == stripped_line.split()[0]:
+                self.parse_db(stripped_line)
             else:
                 print(line)
                 raise Exception
+            temp_file.write(comment)
 
     def get_tabs(self):
         tabs = ""
@@ -73,7 +79,7 @@ class MacroParser:
                 name = tokens[0].strip()
                 MacroNames.append(name)
                 self.name = name
-                self.add_line("def " + name + "(...){")
+                self.add_line("def " + name + "(...) {")
                 self.tabs += 1
             elif tokens[1] == "":
                 label = tokens[0].strip()
@@ -97,7 +103,7 @@ class MacroParser:
             Variables.append(left)
         self.variables.append(right)
         self.assignments[left] = right
-        self.add_line(left + "= " + right)
+        self.add_line(left + " = " + right)
 
     def parse_equal(self, line):
         tokens = line.split("=")
@@ -141,4 +147,14 @@ class MacroParser:
         self.tabs -= 1
         self.add_line("}")
         for line_out in self.lines:
+            pattern = re.compile(r"(?<![\w\\])(?=[\w\\])\\(?=[1-9])")
+            line_out = "p".join(pattern.split(line_out))
             temp_file.write(line_out)
+
+    def parse_db(self, stripped_line):
+        tokens = stripped_line.split()
+        assert tokens[0] == "db"
+        left = "ROM"
+        right = stripped_line.split("db")[1]
+        self.add_assignment([left, right])
+
